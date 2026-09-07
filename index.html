@@ -97,16 +97,20 @@ body{
   backdrop-filter:saturate(160%) blur(8px);
   border-bottom:1px solid var(--line);
 }
-.topbar .brand{font-weight:700; letter-spacing:-.01em; font-size:15px}
+.topbar .brand{
+  font-weight:700; letter-spacing:-.01em; font-size:15px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  flex:0 1 auto; min-width:0;   /* shrink before the controls do */
+}
 .topbar .brand span{color:var(--accent)}
-.topbar .spacer{flex:1}
+.topbar .spacer{flex:1 1 0; min-width:0}
 .topbar a.jump{
-  color:var(--ink-soft); text-decoration:none; font-size:13px;
+  color:var(--ink-soft); text-decoration:none; font-size:13px; white-space:nowrap;
   padding:6px 10px; border-radius:999px; border:1px solid transparent;
 }
 .topbar a.jump:hover{background:var(--accent-soft); color:var(--accent-ink); border-color:var(--line)}
 .tbtn{
-  font:inherit; font-size:13px; cursor:pointer;
+  font:inherit; font-size:13px; cursor:pointer; white-space:nowrap;
   padding:6px 12px; border-radius:999px;
   border:1px solid var(--line-strong); background:var(--panel); color:var(--ink-soft);
 }
@@ -115,7 +119,57 @@ body{
 /* ---------- Layout ---------- */
 .shell{max-width:1280px; margin:0 auto; padding:0 20px 80px}
 .cols{display:grid; grid-template-columns:262px minmax(0,1fr); gap:34px; align-items:start}
-@media (max-width:1040px){ .cols{grid-template-columns:1fr} .sidenav{display:none} }
+@media (max-width:1040px){ .cols{grid-template-columns:minmax(0,1fr)} .sidenav{display:none} }
+
+/* ---------- Tablet and small laptop ---------- */
+@media (max-width:760px){
+  html{scroll-padding-top:68px}
+  .shell{padding:0 14px 56px}
+  .cols{gap:0}
+  .hero{padding:26px 0 6px}
+  .hero .lede{font-size:16px}
+  .card{padding:18px 16px; margin-bottom:20px}
+  .module{padding:4px 16px 20px; margin-bottom:22px}
+  .mod-head{padding:18px 0 12px; gap:10px}
+  .mod-num{width:38px; height:38px; border-radius:10px; font-size:16px}
+  .mod-title{flex-basis:200px}
+  .mod-title h2{font-size:20px}
+  h2{font-size:22px; margin:26px 0 10px}
+  h3{font-size:16px; margin:24px 0 8px}
+  .stat{flex:1 1 calc(50% - 10px); min-width:0; padding:10px 12px}
+  .stat b{font-size:19px}
+  .box{padding:12px 14px}
+  pre{font-size:12.4px; padding:12px 12px 14px}
+  pre.ascii{font-size:11px; line-height:1.4}
+  table{font-size:13.4px; min-width:460px}
+  th,td{padding:8px 10px}
+  ul,ol{padding-left:19px}
+}
+
+/* ---------- Phone ---------- */
+@media (max-width:520px){
+  body{font-size:15.5px}
+  .topbar{padding:8px 12px; gap:8px}
+  .topbar .brand{font-size:13px}
+  .topbar a.jump{padding:6px 8px; font-size:12.5px}
+  .topbar a.jump[href="#wrapup"]{display:none}   /* keep Contents, the mobile nav */
+  .brand-suffix{display:none}
+  .tbtn{padding:5px 10px; font-size:12.5px}
+  .shell{padding:0 12px 44px}
+  .card{padding:16px 13px}
+  .module{padding:2px 13px 18px}
+  .toc-grid{gap:10px}
+  .toc-item{padding:11px 13px}
+  .stats{gap:8px}
+  .box{padding:11px 12px}
+  .lab-list > li{padding-left:0; padding-top:22px}   /* badge sits above the text */
+  .lab-list > li::before{top:0}
+  pre{font-size:11.8px}
+  pre.ascii{font-size:10px}
+  .badge{font-size:11px; padding:4px 9px}
+  .pill{font-size:11.5px}
+  table{min-width:420px}
+}
 
 .sidenav{
   position:sticky; top:70px;
@@ -181,7 +235,8 @@ h3::before{
   content:""; width:4px; height:17px; border-radius:2px; background:var(--accent); display:inline-block;
 }
 h4{font-size:15px; margin:20px 0 6px; color:var(--ink)}
-p{margin:0 0 12px}
+p{margin:0 0 12px; overflow-wrap:break-word}
+li{overflow-wrap:break-word}
 ul,ol{margin:0 0 14px; padding-left:22px}
 li{margin:5px 0}
 li > ul, li > ol{margin-top:5px}
@@ -195,7 +250,7 @@ code{
 a{color:var(--accent)}
 
 /* ---------- TOC grid ---------- */
-.toc-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(258px,1fr)); gap:12px; margin-top:6px}
+.toc-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(min(258px,100%),1fr)); gap:12px; margin-top:6px}
 .toc-item{
   display:block; text-decoration:none; color:inherit;
   border:1px solid var(--line); border-radius:var(--radius); padding:13px 15px;
@@ -279,7 +334,8 @@ html[data-theme="dark"] .lab-list > li::before{color:#180f2b}
 }
 pre{
   margin:0; background:var(--code-bg); color:var(--code-ink);
-  padding:14px 16px 16px; overflow-x:auto; font-size:13.2px; line-height:1.62;
+  padding:14px 16px 16px; overflow-x:auto; overscroll-behavior-x:contain;
+  font-size:13.2px; line-height:1.62;
 }
 pre code{
   background:none; border:none; padding:0; color:inherit; font-size:inherit;
@@ -288,7 +344,7 @@ pre code{
 pre.ascii{font-size:12.4px; line-height:1.42}
 
 /* ---------- Tables ---------- */
-.tablewrap{overflow-x:auto; margin:16px 0; border:1px solid var(--line); border-radius:var(--radius)}
+.tablewrap{overflow-x:auto; overscroll-behavior-x:contain; margin:16px 0; border:1px solid var(--line); border-radius:var(--radius)}
 table{border-collapse:collapse; width:100%; font-size:14px; min-width:520px; background:var(--panel)}
 th,td{padding:10px 14px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top}
 thead th{
@@ -309,13 +365,13 @@ hr{border:none; border-top:1px solid var(--line); margin:26px 0}
   font-size:12.5px; padding:5px 12px; border-radius:999px;
   background:var(--panel-2); border:1px solid var(--line); color:var(--ink-soft);
 }
-.grid2{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px}
+.grid2{display:grid; grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr)); gap:16px}
 .back{font-size:12.5px; text-decoration:none; color:var(--muted); display:inline-block; margin-top:18px}
 .back:hover{color:var(--accent)}
 
 @media print{
   .topbar,.sidenav,.back{display:none}
-  .cols{grid-template-columns:1fr}
+  .cols{grid-template-columns:minmax(0,1fr)}
   body{background:#fff; font-size:11.5pt}
   .module,.card{break-inside:auto; box-shadow:none; border-color:#bbb}
   .mod-head{break-after:avoid}
@@ -326,7 +382,7 @@ hr{border:none; border-top:1px solid var(--line); margin:26px 0}
 <body>
 
 <div class="topbar">
-  <div class="brand">SQL Server &rarr; <span>Azure</span> &middot; Teaching Notes</div>
+  <div class="brand">SQL Server &rarr; <span>Azure</span><span class="brand-suffix"> &middot; Teaching Notes</span></div>
   <div class="spacer"></div>
   <a class="jump" href="#toc">Contents</a>
   <a class="jump" href="#wrapup">Course wrap-up</a>
