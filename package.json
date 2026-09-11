@@ -18,7 +18,8 @@
     "verify:content": "tsx lib/content/verify-examples.ts",
     "test": "npm run test:sandbox && npm run verify:content",
     "admin:check": "tsx scripts/admin-doctor.ts",
-    "admin:fix": "tsx scripts/admin-doctor.ts --fix"
+    "admin:fix": "tsx scripts/admin-doctor.ts --fix",
+    "admin:promote": "tsx scripts/promote-admin.ts"
   },
   "dependencies": {
     "@codemirror/lang-sql": "^6.10.0",

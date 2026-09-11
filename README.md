@@ -94,6 +94,19 @@ of it. Two things catch people out:
 - `npm run db:seed` never overwrites an existing admin's password, so changing
   `ADMIN_PASSWORD` and re-seeding does nothing. Use `npm run admin:fix`, or set
   `ADMIN_PASSWORD_RESET=true` when seeding.
+- `ADMIN_PASSWORD` must be at least 10 characters. Below that the seed aborts
+  **without creating anything**, and the login page later reports "email or
+  password is incorrect", which points at the wrong problem.
+
+To make an existing account an administrator — someone who already registered
+through the form — promote them instead, which leaves their password alone:
+
+```bash
+npm run admin:promote -- rohith.mps@gmail.com
+```
+
+That sets role ADMIN, status APPROVED and no expiry. It is also how you approve
+yourself when you are the first user and there is no admin yet.
 
 The seed also creates two demo learners (password `Learner!2345`) so the admin
 screen has something to show: one `PENDING`, one `APPROVED` with 30 days.
@@ -113,6 +126,7 @@ staging box.
 | `npm run db:migrate` | Create/apply migrations (development) |
 | `npm run db:deploy` | Apply existing migrations (production) |
 | `npm run db:seed` | Create the admin and demo users |
+| `npm run admin:promote -- a@b.com` | Promote an already-registered user to administrator, keeping their password |
 | `npm run admin:check` | Diagnose why the admin cannot sign in |
 | `npm run admin:fix` | Normalise the admin email and reset its password from `ADMIN_PASSWORD` |
 | `npm run db:studio` | Prisma Studio |
