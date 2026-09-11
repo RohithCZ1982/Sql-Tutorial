@@ -11,6 +11,7 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../lib/generated/prisma/client";
+import { hashPassword } from "../lib/password";
 
 const BASE = process.env.E2E_BASE ?? "http://127.0.0.1:3000";
 
@@ -70,13 +71,86 @@ async function main() {
   const learnerEmail = `e2e.learner.${stamp}@example.com`;
   const learnerPassword = "LearnerPass!2345";
 
-  console.log("\nGuest playground");
+  console.log("\nSigned-out visitors are locked out");
+  {
+    const anon = new Session();
+
+    // Pages redirect to /login, carrying where they were heading.
+    for (const path of ["/learn", "/learn/what-is-a-schema", "/playground", "/schema"]) {
+      const res = await anon.fetch(path);
+      const location = res.headers.get("location") ?? "";
+      check(
+        `${path} redirects to login`,
+        res.status === 307 && location.includes("/login"),
+        `status=${res.status} location=${location}`,
+      );
+    }
+
+    // The landing page stays public so people can find the sign-in.
+    const home = await anon.fetch("/");
+    check("/ stays public", home.status === 200, `status=${home.status}`);
+    const loginPage = await anon.fetch("/login");
+    check("/login stays public", loginPage.status === 200, `status=${loginPage.status}`);
+
+    // The API refuses outright rather than creating a schema.
+    const ran = await anon.fetch("/api/playground/run", {
+      method: "POST",
+      body: JSON.stringify({ sql: "SELECT 1;" }),
+    });
+    check("playground API returns 401", ran.status === 401, `status=${ran.status}`);
+
+    const reset = await anon.fetch("/api/playground/reset", { method: "POST" });
+    check("reset API returns 401", reset.status === 401, `status=${reset.status}`);
+
+    const introspect = await anon.fetch("/api/playground/schema");
+    check("schema API returns 401", introspect.status === 401, `status=${introspect.status}`);
+
+    // ...and no schema was created for the unauthenticated caller.
+    const schemasBefore = await prisma.$queryRawUnsafe<{ n: bigint }[]>(
+      `SELECT count(*)::bigint AS n FROM pg_namespace WHERE nspname LIKE 'playground_%'`,
+    );
+    await anon.fetch("/api/playground/run", {
+      method: "POST",
+      body: JSON.stringify({ sql: "CREATE TABLE sneaky (id INT);" }),
+    });
+    const schemasAfter = await prisma.$queryRawUnsafe<{ n: bigint }[]>(
+      `SELECT count(*)::bigint AS n FROM pg_namespace WHERE nspname LIKE 'playground_%'`,
+    );
+    check(
+      "a rejected caller creates no schema",
+      schemasBefore[0].n === schemasAfter[0].n,
+      `before=${schemasBefore[0].n} after=${schemasAfter[0].n}`,
+    );
+  }
+
+  console.log("\nSigned-in playground");
   const guest = new Session();
+  {
+    // Sign in as the approved demo learner created below is not available yet,
+    // so use a purpose-made account for the playground checks.
+    const email = `e2e.player.${stamp}@example.com`;
+    const password = "PlayerPass!2345";
+    await prisma.user.create({
+      data: {
+        email,
+        name: "E2E Player",
+        passwordHash: await hashPassword(password),
+        status: "APPROVED",
+        accessDays: 7,
+        accessExpiresAt: new Date(Date.now() + 7 * 86_400_000),
+      },
+    });
+    const res = await guest.fetch("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+    check("playground user signs in", res.status === 200, `status=${res.status}`);
+  }
   {
     const created = await guest.run(
       "CREATE TABLE students (id SERIAL PRIMARY KEY, name TEXT NOT NULL);",
     );
-    check("guest can create a table", created.ok === true, JSON.stringify(created).slice(0, 200));
+    check("signed-in user can create a table", created.ok === true, JSON.stringify(created).slice(0, 200));
 
     const inserted = await guest.run(
       "INSERT INTO students (name) VALUES ('Ada'), ('Grace') RETURNING id, name;",
@@ -144,9 +218,23 @@ async function main() {
   console.log("\nSession isolation");
   {
     const other = new Session();
+    const otherEmail = `e2e.other.${stamp}@example.com`;
+    await prisma.user.create({
+      data: {
+        email: otherEmail,
+        name: "E2E Other",
+        passwordHash: await hashPassword("OtherPass!2345"),
+        status: "APPROVED",
+        accessExpiresAt: new Date(Date.now() + 86_400_000),
+      },
+    });
+    await other.fetch("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: otherEmail, password: "OtherPass!2345" }),
+    });
     const result = await other.run("SELECT count(*) FROM students;");
     check(
-      "a second guest cannot see the first guest's table",
+      "a second session cannot see the first session's table",
       result.ok === false && /does not exist/i.test(result.error),
       JSON.stringify(result).slice(0, 160),
     );
@@ -194,7 +282,7 @@ async function main() {
     });
     check("admin can sign in", adminLogin.status === 200, `status=${adminLogin.status}`);
 
-    const guestAdminAttempt = await guest.fetch("/api/admin/users");
+    const guestAdminAttempt = await guest.fetch("/api/admin/users");  // signed in, not admin
     check(
       "non-admin cannot list users",
       guestAdminAttempt.status === 401 || guestAdminAttempt.status === 403,
@@ -288,8 +376,10 @@ async function main() {
 
   console.log("\nCleanup");
   {
-    const deleted = await prisma.user.deleteMany({ where: { email: learnerEmail } });
-    check("test learner removed", deleted.count === 1);
+    const deleted = await prisma.user.deleteMany({
+      where: { email: { in: [learnerEmail, `e2e.player.${stamp}@example.com`, `e2e.other.${stamp}@example.com`] } },
+    });
+    check("test users removed", deleted.count === 3, `deleted=${deleted.count}`);
 
     // Drop the throwaway playground schemas this run created.
     const schemas = await prisma.$queryRawUnsafe<{ nspname: string }[]>(

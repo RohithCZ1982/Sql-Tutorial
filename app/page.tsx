@@ -32,23 +32,42 @@ export default async function HomePage() {
         </p>
 
         <div className="mt-6 flex flex-wrap gap-3">
-          <Link
-            href={`/learn/${modules[0].slug}`}
-            className="rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-strong"
-          >
-            Start with module 1
-          </Link>
-          <Link
-            href="/playground"
-            className="rounded-lg border border-line bg-surface px-5 py-2.5 text-sm font-semibold text-ink-soft transition hover:border-accent hover:text-accent"
-          >
-            Open the playground
-          </Link>
+          {session ? (
+            <>
+              <Link
+                href={`/learn/${modules[0].slug}`}
+                className="rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-strong"
+              >
+                Start with module 1
+              </Link>
+              <Link
+                href="/playground"
+                className="rounded-lg border border-line bg-surface px-5 py-2.5 text-sm font-semibold text-ink-soft transition hover:border-accent hover:text-accent"
+              >
+                Open the playground
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-strong"
+              >
+                Sign in to start
+              </Link>
+              <Link
+                href="/register"
+                className="rounded-lg border border-line bg-surface px-5 py-2.5 text-sm font-semibold text-ink-soft transition hover:border-accent hover:text-accent"
+              >
+                Request an account
+              </Link>
+            </>
+          )}
         </div>
 
         <p className="mt-4 text-sm text-muted">
-          {modules.length} modules · about {Math.round(totalMinutes / 60)} hours ·
-          no sign-up needed to try the playground
+          {modules.length} modules · about {Math.round(totalMinutes / 60)} hours
+          {!session && " · an administrator approves new accounts"}
         </p>
       </section>
 
@@ -68,7 +87,11 @@ export default async function HomePage() {
             return (
               <li key={module.slug}>
                 <Link
-                  href={`/learn/${module.slug}`}
+                  href={
+                    session
+                      ? `/learn/${module.slug}`
+                      : `/login?next=${encodeURIComponent(`/learn/${module.slug}`)}`
+                  }
                   className="group flex h-full flex-col rounded-xl border border-line bg-surface p-4 transition hover:-translate-y-0.5 hover:border-accent"
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -101,7 +124,7 @@ export default async function HomePage() {
         {[
           {
             title: "Your own private schema",
-            body: "Every session gets a separate Postgres schema. Create, break and drop whatever you like — nobody else sees it, and Reset gives you a clean slate.",
+            body: "Every signed-in session gets a separate Postgres schema. Create, break and drop whatever you like — nobody else sees it, and Reset gives you a clean slate.",
           },
           {
             title: "SQL and Prisma together",

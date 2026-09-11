@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export function LoginForm() {
+export function LoginForm({ next }: { next?: string }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +25,11 @@ export function LoginForm() {
         setError(data.error ?? "Could not sign you in.");
         return;
       }
-      router.push(data.user?.role === "ADMIN" ? "/admin" : "/account");
+      // Only ever follow a relative path — "//evil.example" would otherwise be
+      // an open redirect.
+      const safeNext =
+        next && next.startsWith("/") && !next.startsWith("//") ? next : null;
+      router.push(safeNext ?? (data.user?.role === "ADMIN" ? "/admin" : "/account"));
       router.refresh();
     } catch {
       setError("Could not reach the server.");

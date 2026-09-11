@@ -1,15 +1,7 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { randomBytes, scrypt as scryptCallback, type ScryptOptions } from "node:crypto";
-import { promisify } from "node:util";
 import { PrismaClient } from "../lib/generated/prisma/client";
-
-const scrypt = promisify(scryptCallback) as (
-  password: string | Buffer,
-  salt: string | Buffer,
-  keylen: number,
-  options?: ScryptOptions,
-) => Promise<Buffer>;
+import { hashPassword } from "../lib/password";
 
 /**
  * Seed: creates the admin account and a couple of demo learners so the admin
@@ -18,15 +10,6 @@ const scrypt = promisify(scryptCallback) as (
  * Safe to run repeatedly — every write is an upsert, and an existing admin's
  * password is never overwritten.
  */
-
-const SCRYPT_PARAMS = { N: 16384, r: 8, p: 1 };
-
-async function hashPassword(password: string): Promise<string> {
-  const salt = randomBytes(16);
-  const derived = (await scrypt(password, salt, 64, SCRYPT_PARAMS)) as Buffer;
-  const { N, r, p } = SCRYPT_PARAMS;
-  return `scrypt$${N}$${r}$${p}$${salt.toString("hex")}$${derived.toString("hex")}`;
-}
 
 async function main() {
   const connectionString = process.env.DIRECT_URL ?? process.env.DATABASE_URL;

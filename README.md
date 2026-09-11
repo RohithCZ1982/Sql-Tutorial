@@ -29,15 +29,16 @@ editor pre-loaded with runnable examples.
 | 10 | DELETE vs TRUNCATE | speed, rollback, identity reset, triggers, locks |
 
 **A live playground** — split view with the examples on the left, a CodeMirror
-SQL editor on the right and results underneath. Every session gets its own
-Postgres schema, so one learner dropping a table cannot disturb another.
+SQL editor on the right and results underneath. Every signed-in session gets its
+own Postgres schema, so one learner dropping a table cannot disturb another.
 
 **A schema visualizer** — reads the catalogs and shows your tables, columns,
 keys, indexes and relationships as you build them.
 
-**Accounts** — register, an administrator approves you and grants a number of
-access days, and your progress is tracked per module. Guests can use the
-playground without an account.
+**Accounts** — the course and the playground are for signed-in learners only.
+Register, an administrator approves you and grants a number of access days, and
+your progress is tracked per module. Only the landing page and the sign-in and
+registration forms are public.
 
 ---
 
@@ -144,6 +145,16 @@ register  ──▶  PENDING  ──▶  admin approves + sets access days  ─�
   and their playground schema.
 - `/account` is the same view for a single learner: their access window, their
   progress, and their own active sessions.
+
+### What is public
+
+| Route | Who can see it |
+|---|---|
+| `/`, `/login`, `/register` | Everyone — the landing page exists so people can find the sign-in |
+| `/learn`, `/learn/[slug]` | Signed-in learners. Others are redirected to `/login?next=…` and land back where they were headed |
+| `/playground`, `/schema` | Signed-in learners |
+| `/api/playground/*` | Signed-in learners; `401` otherwise, and no schema is created for a rejected caller |
+| `/admin`, `/api/admin/*` | Administrators only |
 
 Passwords are hashed with **scrypt** from `node:crypto` (no native dependency to
 compile). Session cookies hold a random 32-byte token; only its SHA-256 hash is

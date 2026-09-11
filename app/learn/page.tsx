@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { modules } from "@/lib/content/modules";
+import { requirePageSession } from "@/lib/auth";
 
 export const metadata = { title: "Modules — SQL Playground" };
 
-export default function LearnIndex() {
+export default async function LearnIndex() {
+  await requirePageSession("/learn");
+
   return (
     <div className="py-10">
       <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">All modules</h1>

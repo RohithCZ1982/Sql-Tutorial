@@ -35,7 +35,7 @@ export function SiteNav({ user }: { user: NavUser }) {
         </Link>
 
         <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto sm:gap-1">
-          {links.map((link) => {
+          {(user ? links : []).map((link) => {
             const active =
               link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
             return (

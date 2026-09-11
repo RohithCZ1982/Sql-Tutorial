@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Playground } from "@/components/playground";
 import { readPlaygroundContext } from "@/lib/playground-session";
+import { requirePageSession } from "@/lib/auth";
 import { modules } from "@/lib/content/modules";
 
 export const metadata = { title: "Playground — SQL Playground" };
@@ -21,6 +22,7 @@ SELECT * FROM students ORDER BY score DESC;
 `;
 
 export default async function PlaygroundPage() {
+  await requirePageSession("/playground");
   const context = await readPlaygroundContext();
 
   const groups = modules.map((module) => ({
@@ -41,7 +43,7 @@ export default async function PlaygroundPage() {
         </div>
         <p className="font-mono text-[11px] text-muted">
           {context
-            ? `schema: ${context.schema}${context.isGuest ? " (guest)" : ""}`
+            ? `schema: ${context.schema}`
             : "a private schema is created when you first run something"}
         </p>
       </div>

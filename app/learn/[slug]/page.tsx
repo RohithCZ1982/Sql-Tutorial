@@ -4,7 +4,7 @@ import { modules, getModule } from "@/lib/content/modules";
 import { CodeBlock } from "@/components/code-block";
 import { Playground } from "@/components/playground";
 import { ProgressToggle } from "@/components/progress-toggle";
-import { getSession } from "@/lib/auth";
+import { getSession, requirePageSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 export function generateStaticParams() {
@@ -27,6 +27,8 @@ export default async function ModulePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  await requirePageSession(`/learn/${slug}`);
+
   const module = getModule(slug);
   if (!module) notFound();
 

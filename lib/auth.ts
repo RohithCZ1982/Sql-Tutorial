@@ -1,65 +1,16 @@
 import "server-only";
-import {
-  randomBytes,
-  scrypt as scryptCallback,
-  timingSafeEqual,
-  createHash,
-  type ScryptOptions,
-} from "node:crypto";
-import { promisify } from "node:util";
+import { randomBytes, createHash } from "node:crypto";
 import { cookies, headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { prisma } from "./db";
 import type { Role, User, UserStatus } from "./generated/prisma/client";
 
-// promisify() resolves to scrypt's 3-argument overload, which drops the cost
-// parameters. Declare the signature we actually use.
-const scrypt = promisify(scryptCallback) as (
-  password: string | Buffer,
-  salt: string | Buffer,
-  keylen: number,
-  options?: ScryptOptions,
-) => Promise<Buffer>;
+// Password hashing lives in ./password so scripts outside Next (the seed, the
+// end-to-end checks) can use the same implementation.
+export { hashPassword, verifyPassword } from "./password";
 
 export const SESSION_COOKIE = "sqlplay_session";
 const SESSION_DAYS = 7;
-const SCRYPT_KEYLEN = 64;
-
-/* -------------------------------------------------------------------------
- * Passwords
- *
- * scrypt from node:crypto rather than bcrypt: it is memory-hard, ships with
- * Node (no native build step on Neon/Vercel), and the parameters are explicit.
- * Format stored: scrypt$N$r$p$salt$hash, so the cost can be raised later
- * without invalidating existing hashes.
- * ---------------------------------------------------------------------- */
-
-const SCRYPT_PARAMS = { N: 16384, r: 8, p: 1 };
-
-export async function hashPassword(password: string): Promise<string> {
-  const salt = randomBytes(16);
-  const derived = (await scrypt(password, salt, SCRYPT_KEYLEN, SCRYPT_PARAMS)) as Buffer;
-  const { N, r, p } = SCRYPT_PARAMS;
-  return `scrypt$${N}$${r}$${p}$${salt.toString("hex")}$${derived.toString("hex")}`;
-}
-
-export async function verifyPassword(password: string, stored: string): Promise<boolean> {
-  const parts = stored.split("$");
-  if (parts.length !== 6 || parts[0] !== "scrypt") return false;
-
-  const [, n, r, p, saltHex, hashHex] = parts;
-  const salt = Buffer.from(saltHex, "hex");
-  const expected = Buffer.from(hashHex, "hex");
-
-  const derived = (await scrypt(password, salt, expected.length, {
-    N: Number(n),
-    r: Number(r),
-    p: Number(p),
-  })) as Buffer;
-
-  // Constant-time: a length mismatch alone must not short-circuit early.
-  if (derived.length !== expected.length) return false;
-  return timingSafeEqual(derived, expected);
-}
 
 /* -------------------------------------------------------------------------
  * Sessions
@@ -171,6 +122,24 @@ export async function destroySession(): Promise<void> {
     });
   }
   cookieStore.delete(SESSION_COOKIE);
+}
+
+/**
+ * Page-level gate for Server Components: send anyone without a valid session to
+ * the login page, remembering where they were heading.
+ *
+ * `requireUser` below is the API-route equivalent — it throws AuthError instead,
+ * because a route handler must answer 401 rather than redirect.
+ */
+export async function requirePageSession(returnTo?: string): Promise<ActiveSession> {
+  const session = await getSession();
+  if (!session) {
+    const target = returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")
+      ? `/login?next=${encodeURIComponent(returnTo)}`
+      : "/login";
+    redirect(target);
+  }
+  return session;
 }
 
 export async function requireUser(): Promise<ActiveSession> {

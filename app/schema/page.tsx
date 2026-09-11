@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { describeSchema } from "@/lib/playground";
 import { readPlaygroundContext } from "@/lib/playground-session";
+import { requirePageSession } from "@/lib/auth";
 
 export const metadata = { title: "Your schema — SQL Playground" };
 export const dynamic = "force-dynamic";
 
 export default async function SchemaPage() {
+  await requirePageSession("/schema");
   const context = await readPlaygroundContext();
   const tables = context ? await describeSchema(context.schema) : [];
 
