@@ -1,73 +1,47 @@
-# Render blueprint — everything in one place.
+# Render blueprint. Create the service from this file (New → Blueprint) and the
+# build/start commands are configured correctly from the start.
 #
-# New → Blueprint on this repo provisions the Postgres database AND the web
-# service together, and wires the connection string between them. There is no
-# separate Neon account to set up and no connection string to copy by hand.
+# Two settings here exist because of Render defaults that break Next + Prisma:
 #
-# Three settings here exist because of Render defaults that otherwise break a
-# Next + Prisma build:
+#   --include=dev   Render sets NODE_ENV=production, which makes `npm ci` skip
+#                   devDependencies. But next build NEEDS typescript, tailwindcss
+#                   and the prisma CLI, all of which are devDependencies. Without
+#                   this flag the build fails on a missing tsconfig plugin or on
+#                   `prisma: not found` in the postinstall hook.
 #
-#   --include=dev     Render sets NODE_ENV=production, which makes `npm ci` skip
-#                     devDependencies. But next build NEEDS typescript,
-#                     tailwindcss and the prisma CLI, all of which are
-#                     devDependencies. Without this the build fails on
-#                     `prisma: not found` in the postinstall hook.
-#
-#   NODE_VERSION      Next 16 needs >=20.9, Prisma 7 needs ^20.19 || ^22.12 ||
-#                     >=24. Pinned so a drift in Render's default cannot break
-#                     the build with a confusing error.
-#
-#   preDeployCommand  Applies migrations before the new version serves traffic,
+#   preDeployCommand  Applies migrations before the new version starts serving,
 #                     so the app never boots against a schema it does not match.
-#                     Paid instance types only — on the free type, delete this
-#                     line and use the buildCommand marked below instead.
-
-databases:
-  - name: sqlplay-db
-    databaseName: sqlplay
-    user: sqlplay
-    plan: basic-256mb
-    # Free tier alternative — note Render DELETES a free database after 30 days:
-    # plan: free
+#                     (Available on Render's paid instance types. On the free
+#                     tier, move `npm run db:deploy` into buildCommand instead.)
 
 services:
   - type: web
     name: sql-playground
     runtime: node
     plan: starter
-    # plan: free   # sleeps after 15 min idle; no preDeployCommand available
-
     buildCommand: npm ci --include=dev && npm run build
-    # Free instance type instead (no pre-deploy step available):
-    # buildCommand: npm ci --include=dev && npm run db:deploy && npm run build
-
     preDeployCommand: npm run db:deploy
     startCommand: npm start
     healthCheckPath: /
-
     envVars:
       - key: NODE_VERSION
         value: 22.12.0
 
-      # Both point at the same Render database. Render Postgres has no separate
-      # transaction pooler, so unlike Neon there is no pooled/direct split —
-      # DIRECT_URL exists because Prisma migrations need a session-level
-      # connection, and here that is the same connection.
+      # Neon POOLED connection string (host contains "-pooler").
       - key: DATABASE_URL
-        fromDatabase:
-          name: sqlplay-db
-          property: connectionString
-      - key: DIRECT_URL
-        fromDatabase:
-          name: sqlplay-db
-          property: connectionString
+        sync: false
 
-      # Generated once by Render and kept across deploys.
+      # Neon DIRECT connection string (no "-pooler"). Migrations need a
+      # session-level connection that a transaction pooler cannot provide.
+      - key: DIRECT_URL
+        sync: false
+
+      # openssl rand -hex 32
       - key: SESSION_SECRET
         generateValue: true
 
-      # The admin account `npm run db:seed` creates. Set both in the dashboard,
-      # then run the seed once from the Render Shell.
+      # The admin account `npm run db:seed` creates. Set both, then run the
+      # seed once from the Render Shell.
       - key: ADMIN_EMAIL
         sync: false
       - key: ADMIN_PASSWORD

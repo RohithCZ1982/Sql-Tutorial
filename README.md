@@ -41,27 +41,20 @@ playground without an account.
 
 ---
 
-## The database
+## Setting up Neon
 
-Any Postgres works. The app needs two connection variables:
+1. Create a free project at [neon.tech](https://neon.tech).
+2. Open **Dashboard → Connection Details**. You need **both** connection strings:
+   - the **pooled** one (host contains `-pooler`) → `DATABASE_URL`
+   - the **direct** one (no `-pooler`) → `DIRECT_URL`
 
-- `DATABASE_URL` — used by the app at runtime
-- `DIRECT_URL` — used by `prisma migrate`, which needs a session-level
-  connection that a transaction pooler cannot provide
+   The app runs against the pooled endpoint; `prisma migrate` needs the direct
+   one, because a transaction pooler cannot hold the session-level locks that
+   migrations take.
+3. Keep `?sslmode=require` on both.
 
-**On Render they are the same value**, and the blueprint fills both in for you —
-Render Postgres has no separate pooler endpoint. See [Deploying](#deploying).
-
-**On Neon they differ.** Take both strings from **Dashboard → Connection
-Details**: the pooled one (host contains `-pooler`) becomes `DATABASE_URL`, the
-direct one becomes `DIRECT_URL`. Keep `?sslmode=require` on both.
-
-**Locally**, point both at the same instance:
-
-```
-DATABASE_URL="postgresql://postgres@127.0.0.1:5432/sqlplay"
-DIRECT_URL="postgresql://postgres@127.0.0.1:5432/sqlplay"
-```
+Any Postgres works — Neon is not required. For local Postgres, point both
+variables at the same instance.
 
 ## Configuration
 
@@ -230,21 +223,10 @@ example picker and the progress tracker all read from it.
 
 ## Deploying
 
-### Render — everything in one place
+### Render
 
-`render.yaml` provisions **both** the Postgres database and the web service, and
-wires the connection string between them. No separate database account, no
-connection string to copy.
-
-1. **New → Blueprint**, point it at this repo.
-2. Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` when prompted — they are the only two
-   values Render cannot generate. `SESSION_SECRET` is generated automatically
-   and `DATABASE_URL` / `DIRECT_URL` come from the database it just created.
-3. Deploy.
-
-To configure a service by hand instead (create the Postgres instance first, then
-the web service, and set `DATABASE_URL` and `DIRECT_URL` to its **internal**
-connection string):
+A `render.yaml` blueprint is included — **New → Blueprint** picks it up and sets
+everything below automatically. To configure a service by hand instead:
 
 | Setting | Value |
 |---|---|
@@ -252,6 +234,9 @@ connection string):
 | Pre-deploy command | `npm run db:deploy` |
 | Start command | `npm start` |
 | Node version | `22.12.0` (or rely on the `engines` field) |
+
+Then set the environment variables: `DATABASE_URL` (Neon **pooled**),
+`DIRECT_URL` (Neon **direct**), `SESSION_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`.
 
 **Seed once after the first successful deploy**, from the Render Shell:
 
@@ -273,11 +258,11 @@ build failures:
   needs `^20.19 || ^22.12 || >=24`). If Render's default drifts below that, the
   failure message will not obviously point at the Node version.
 
-On the **free instance type** there is no pre-deploy step, so fold the migration
+On the free instance type there is no pre-deploy step, so fold the migration
 into the build instead: `npm ci --include=dev && npm run db:deploy && npm run build`.
-Free web services also sleep after 15 minutes of inactivity, so the first request
-after a quiet period is slow. And note that Render **deletes a free Postgres
-database after 30 days** — fine for a demo, not for anything you want to keep.
+Free services also sleep after 15 minutes of inactivity, and a free Neon project
+suspends its compute, so the first request after a quiet period is slow twice
+over.
 
 ### Anywhere else
 
