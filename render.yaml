@@ -1,0 +1,48 @@
+# Render blueprint. Create the service from this file (New → Blueprint) and the
+# build/start commands are configured correctly from the start.
+#
+# Two settings here exist because of Render defaults that break Next + Prisma:
+#
+#   --include=dev   Render sets NODE_ENV=production, which makes `npm ci` skip
+#                   devDependencies. But next build NEEDS typescript, tailwindcss
+#                   and the prisma CLI, all of which are devDependencies. Without
+#                   this flag the build fails on a missing tsconfig plugin or on
+#                   `prisma: not found` in the postinstall hook.
+#
+#   preDeployCommand  Applies migrations before the new version starts serving,
+#                     so the app never boots against a schema it does not match.
+#                     (Available on Render's paid instance types. On the free
+#                     tier, move `npm run db:deploy` into buildCommand instead.)
+
+services:
+  - type: web
+    name: sql-playground
+    runtime: node
+    plan: starter
+    buildCommand: npm ci --include=dev && npm run build
+    preDeployCommand: npm run db:deploy
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: 22.12.0
+
+      # Neon POOLED connection string (host contains "-pooler").
+      - key: DATABASE_URL
+        sync: false
+
+      # Neon DIRECT connection string (no "-pooler"). Migrations need a
+      # session-level connection that a transaction pooler cannot provide.
+      - key: DIRECT_URL
+        sync: false
+
+      # openssl rand -hex 32
+      - key: SESSION_SECRET
+        generateValue: true
+
+      # The admin account `npm run db:seed` creates. Set both, then run the
+      # seed once from the Render Shell.
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false

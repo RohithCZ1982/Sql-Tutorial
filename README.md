@@ -223,12 +223,52 @@ example picker and the progress tracker all read from it.
 
 ## Deploying
 
-Works on any Node host. On Vercel:
+### Render
 
-1. Set `DATABASE_URL`, `DIRECT_URL`, `SESSION_SECRET`, `ADMIN_EMAIL` and
-   `ADMIN_PASSWORD` in the project's environment variables.
-2. `npm run build` already runs `prisma generate`.
-3. Apply migrations with `npm run db:deploy`, then seed once.
+A `render.yaml` blueprint is included — **New → Blueprint** picks it up and sets
+everything below automatically. To configure a service by hand instead:
+
+| Setting | Value |
+|---|---|
+| Build command | `npm ci --include=dev && npm run build` |
+| Pre-deploy command | `npm run db:deploy` |
+| Start command | `npm start` |
+| Node version | `22.12.0` (or rely on the `engines` field) |
+
+Then set the environment variables: `DATABASE_URL` (Neon **pooled**),
+`DIRECT_URL` (Neon **direct**), `SESSION_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`.
+
+**Seed once after the first successful deploy**, from the Render Shell:
+
+```bash
+npm run db:seed
+```
+
+Until you do, no admin account exists and nobody can sign in.
+
+Two Render defaults are worth knowing about, because both produce confusing
+build failures:
+
+- **`--include=dev` is not optional.** Render sets `NODE_ENV=production`, which
+  makes npm skip devDependencies — but `next build` needs `typescript`,
+  `tailwindcss` and the `prisma` CLI, all of which live there. Without the flag
+  the build dies on `prisma: not found` in the postinstall hook, or on a missing
+  Tailwind/TypeScript plugin.
+- **Pin Node.** `engines` requires `>=22.12.0` (Next 16 needs ≥20.9, Prisma 7
+  needs `^20.19 || ^22.12 || >=24`). If Render's default drifts below that, the
+  failure message will not obviously point at the Node version.
+
+On the free instance type there is no pre-deploy step, so fold the migration
+into the build instead: `npm ci --include=dev && npm run db:deploy && npm run build`.
+Free services also sleep after 15 minutes of inactivity, and a free Neon project
+suspends its compute, so the first request after a quiet period is slow twice
+over.
+
+### Anywhere else
+
+Works on any Node host. Set the same five environment variables, run
+`npm run db:deploy` then `npm run db:seed` once, and start with `npm start`.
+`npm run build` already runs `prisma generate`.
 
 The playground creates a schema per session and never drops them automatically.
 On a long-lived deployment, clean up periodically:
