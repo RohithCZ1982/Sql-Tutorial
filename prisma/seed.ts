@@ -19,7 +19,10 @@ async function main() {
 
   const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
 
-  const adminEmail = process.env.ADMIN_EMAIL;
+  // Normalise exactly as the register and login routes do. Without this, an
+  // ADMIN_EMAIL typed with any capital letter creates an account that login can
+  // never find, because login lowercases what the user types.
+  const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase().trim();
   const adminPassword = process.env.ADMIN_PASSWORD;
 
   if (!adminEmail || !adminPassword) {
@@ -34,12 +37,28 @@ async function main() {
   const existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail } });
 
   if (existingAdmin) {
-    // Never silently reset a password that is already in use.
+    // A password already in use is never silently replaced — set
+    // ADMIN_PASSWORD_RESET=true to deliberately reset it from the environment.
+    const resetPassword = process.env.ADMIN_PASSWORD_RESET === "true";
+
     await prisma.user.update({
       where: { email: adminEmail },
-      data: { role: "ADMIN", status: "APPROVED", accessExpiresAt: null },
+      data: {
+        role: "ADMIN",
+        status: "APPROVED",
+        accessExpiresAt: null,
+        ...(resetPassword ? { passwordHash: await hashPassword(adminPassword) } : {}),
+      },
     });
-    console.log(`✓ Admin already existed, ensured role/status: ${adminEmail}`);
+
+    console.log(
+      resetPassword
+        ? `✓ Admin password reset from ADMIN_PASSWORD: ${adminEmail}`
+        : `✓ Admin already existed, ensured role/status: ${adminEmail}`,
+    );
+    if (!resetPassword) {
+      console.log("  (its password was left alone — ADMIN_PASSWORD_RESET=true to change it)");
+    }
   } else {
     await prisma.user.create({
       data: {

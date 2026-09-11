@@ -84,6 +84,17 @@ npm run dev             # http://localhost:3000
 
 Sign in at `/login` with the `ADMIN_EMAIL` / `ADMIN_PASSWORD` you configured.
 
+**If the admin cannot sign in**, run `npm run admin:check`. It reports whether
+the account exists, whether its status and role are right, and whether
+`ADMIN_PASSWORD` matches the stored hash — then `npm run admin:fix` repairs all
+of it. Two things catch people out:
+
+- `ADMIN_EMAIL` is stored lowercased, because login lowercases what you type. An
+  address entered with capitals used to create an account login could never find.
+- `npm run db:seed` never overwrites an existing admin's password, so changing
+  `ADMIN_PASSWORD` and re-seeding does nothing. Use `npm run admin:fix`, or set
+  `ADMIN_PASSWORD_RESET=true` when seeding.
+
 The seed also creates two demo learners (password `Learner!2345`) so the admin
 screen has something to show: one `PENDING`, one `APPROVED` with 30 days.
 
@@ -102,6 +113,8 @@ staging box.
 | `npm run db:migrate` | Create/apply migrations (development) |
 | `npm run db:deploy` | Apply existing migrations (production) |
 | `npm run db:seed` | Create the admin and demo users |
+| `npm run admin:check` | Diagnose why the admin cannot sign in |
+| `npm run admin:fix` | Normalise the admin email and reset its password from `ADMIN_PASSWORD` |
 | `npm run db:studio` | Prisma Studio |
 | `npm run test:sandbox` | Unit tests for the SQL sandbox, including bypass attempts |
 | `npm run verify:content` | Runs **every** course example against the database |
