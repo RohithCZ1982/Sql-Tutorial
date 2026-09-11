@@ -75,6 +75,22 @@ async function main() {
 
   // Two demo learners so the admin screen is not empty on a fresh install:
   // one waiting for approval, one already approved with 30 days of access.
+  //
+  // NEVER in production: their password is published in the README, so on a
+  // public deployment they would be a working login for anyone who reads it.
+  // Set SEED_DEMO_USERS=true to force them anyway (a private staging box).
+  const wantDemoUsers =
+    process.env.SEED_DEMO_USERS === "true" ||
+    (process.env.NODE_ENV !== "production" && process.env.SEED_DEMO_USERS !== "false");
+
+  if (!wantDemoUsers) {
+    console.log("• Skipped the demo learners (NODE_ENV=production).");
+    console.log("  Set SEED_DEMO_USERS=true if you really want them.");
+    console.log("\nSign in at /login");
+    await prisma.$disconnect();
+    return;
+  }
+
   const demoPassword = await hashPassword("Learner!2345");
 
   await prisma.user.upsert({

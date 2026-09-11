@@ -86,6 +86,11 @@ Sign in at `/login` with the `ADMIN_EMAIL` / `ADMIN_PASSWORD` you configured.
 The seed also creates two demo learners (password `Learner!2345`) so the admin
 screen has something to show: one `PENDING`, one `APPROVED` with 30 days.
 
+**Those two are skipped when `NODE_ENV=production`** — their password is printed
+right here, so on a public deployment they would be a working login for anyone
+who reads this file. Set `SEED_DEMO_USERS=true` to force them on a private
+staging box.
+
 ### Scripts
 
 | Command | What it does |
