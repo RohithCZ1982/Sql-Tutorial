@@ -1,0 +1,98 @@
+// Prisma schema for the SQL Playground teaching app.
+//
+// DATABASE_URL  - pooled connection (Neon: the "-pooler" host). Used at runtime.
+// DIRECT_URL    - direct connection. Used by `prisma migrate`, which needs a
+//                 session-level connection that a pgBouncer pooler cannot give.
+// Locally both can point at the same Postgres instance.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Everyone who can sign in. Registration creates a PENDING user; an admin
+/// approves them and grants a number of access days, which sets accessExpiresAt.
+model User {
+  id              String     @id @default(cuid())
+  email           String     @unique
+  name            String?
+  passwordHash    String
+  role            Role       @default(USER)
+  status          UserStatus @default(PENDING)
+
+  /// How many days of access the admin granted at approval time. Kept for
+  /// display and for "extend by the same amount again".
+  accessDays      Int?
+  /// Hard expiry. Null means "no access yet". Login is refused once passed.
+  accessExpiresAt DateTime?
+
+  approvedAt      DateTime?
+  approvedById    String?
+  approvedBy      User?      @relation("Approver", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedUsers   User[]     @relation("Approver")
+
+  /// Set when an admin rejects or suspends, so the user can be told why.
+  statusNote      String?
+
+  lastLoginAt     DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  sessions        Session[]
+  progress        Progress[]
+
+  @@index([status])
+  @@map("users")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum UserStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+/// One row per browser session. The cookie holds a random token; only its
+/// SHA-256 hash is stored, so a database leak cannot be replayed as a login.
+model Session {
+  id           String   @id @default(cuid())
+  tokenHash    String   @unique
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Postgres schema this session's playground tables live in.
+  playgroundSchema String?
+
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+  lastSeenAt   DateTime @default(now())
+  expiresAt    DateTime
+  revokedAt    DateTime?
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+/// Per-user module completion, for the progress tracker.
+model Progress {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moduleSlug  String
+  completedAt DateTime @default(now())
+
+  @@unique([userId, moduleSlug])
+  @@index([userId])
+  @@map("progress")
+}
