@@ -31,6 +31,12 @@ async function main() {
     );
   }
   if (adminPassword.length < 10) {
+    // Loud, because this is easy to scroll past in a deploy log and the symptom
+    // it produces later ("email or password is incorrect") points somewhere else
+    // entirely — no admin row was ever written.
+    console.error("\n✗ ADMIN_PASSWORD is only " + adminPassword.length + " characters.");
+    console.error("  It must be at least 10. NO ADMIN ACCOUNT HAS BEEN CREATED.");
+    console.error("  Set a longer ADMIN_PASSWORD and run this again.\n");
     throw new Error("ADMIN_PASSWORD must be at least 10 characters.");
   }
 

@@ -109,6 +109,18 @@ async function main() {
   }
 
   if (FIX) {
+    // Refuse to write a password the seed itself would reject, otherwise the
+    // two paths disagree about what a valid admin credential is.
+    if (rawPassword.length < 10) {
+      console.error(
+        `\n✗ Refusing to set a ${rawPassword.length}-character password. ` +
+          "ADMIN_PASSWORD must be at least 10 characters.",
+      );
+      console.error("  This account is an administrator on a public site — use a strong one.");
+      await prisma.$disconnect();
+      process.exit(1);
+    }
+
     console.log("\nRepairing");
 
     // Fold any capitalised admin row onto the normalised address.
